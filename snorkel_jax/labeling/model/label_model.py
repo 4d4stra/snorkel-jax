@@ -11,6 +11,7 @@ from tqdm import trange
 
 #from snorkel.labeling.analysis import LFAnalysis
 #from snorkel_jax.labeling.model.base_labeler import BaseLabeler
+from snorkel_jax.utils.core import probs_to_preds
 from snorkel_jax.labeling.model.graph_utils import get_clique_tree
 from snorkel_jax.labeling.model.loss_functions import grad_Zloss,grad_invMUloss,grad_MUloss
 #from snorkel.labeling.model.logger import Logger
@@ -268,6 +269,38 @@ class LabelModel:
         Z = jnp.tile(X.sum(axis=1).reshape(-1, 1), self.cardinality)
         return X / Z
     
+
+    def predict(
+        self,
+        L: jnp.array,
+        return_probs: Optional[bool] = False,
+        tie_break_policy: str = "abstain",
+    ) -> Union[jnp.array, Tuple[jnp.array, jnp.array]]:
+        """Return predicted labels, with ties broken according to policy.
+        Policies to break ties include:
+        "abstain": return an abstain vote (-1)
+        "random": randomly choose among tied option using deterministic hash
+        Parameters
+        ----------
+        L
+            An [n,m] matrix with values in {-1,0,1,...,k-1}
+        return_probs
+            Whether to return probs along with preds
+        tie_break_policy
+            Policy to break ties when converting probabilistic labels to predictions
+        Returns
+        -------
+        np.ndarray
+            An [n,1] array of integer labels
+        (np.ndarray, np.ndarray)
+            An [n,1] array of integer labels and an [n,k] array of probabilistic labels
+        """
+        Y_probs = self.predict_proba(L)
+        Y_p = probs_to_preds(Y_probs, tie_break_policy)
+        if return_probs:
+            return Y_p, Y_probs
+        return Y_p
+
 
     def fit(
         self,
