@@ -10,7 +10,7 @@ import optax
 from tqdm import trange
 
 #from snorkel.labeling.analysis import LFAnalysis
-from snorkel_jax.labeling.model.base_labeler import BaseLabeler
+#from snorkel_jax.labeling.model.base_labeler import BaseLabeler
 from snorkel_jax.labeling.model.graph_utils import get_clique_tree
 from snorkel_jax.labeling.model.loss_functions import grad_Zloss,grad_invMUloss,grad_MUloss
 #from snorkel.labeling.model.logger import Logger
@@ -25,7 +25,7 @@ class _CliqueData(NamedTuple):
     max_cliques: Set[int]
 
 
-class LabelModel(BaseLabeler):
+class LabelModel:
     r"""A model for learning the LF accuracies and combining their output labels.
     This class learns a model of the labeling functions' conditional probabilities
     of outputting the true (unobserved) label `Y`, `P(\lf | Y)`, and uses this learned
@@ -66,7 +66,6 @@ class LabelModel(BaseLabeler):
     """
 
     def __init__(self, cardinality: int = 2, random_seed: int = 13, **kwargs: Any) -> None:
-        super().__init__()
         #self.config: LabelModelConfig = LabelModelConfig(**kwargs)
         self.cardinality = cardinality
         self.random_key = jax.random.PRNGKey(random_seed)
