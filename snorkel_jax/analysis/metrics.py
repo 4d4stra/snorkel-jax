@@ -103,13 +103,23 @@ def metric_score(
 def _accuracy(golds: jnp.array, preds:jnp.array) -> float:
     return jnp.sum(golds==preds)/len(golds)
 
+def _precision(golds: jnp.array, preds:jnp.array) -> dict:
+    classes=jnp.unique(golds)
+    dict_out={}
+    for class_i in classes:
+        class_i=int(class_i)
+        tp_i=jnp.sum((preds==class_i) & (preds==golds))
+        fp_i=jnp.sum((preds==class_i) & (preds!=golds))
+        dict_out[class_i]=tp_i/(tp_i+fp_i)
+    return dict_out
+
 
 # See https://scikit-learn.org/stable/modules/classes.html#module-sklearn.metrics
 # for details on the definitions and available kwargs for all metrics from scikit-learn
 METRICS = {
     "accuracy": Metric(_accuracy,['golds','preds']),
     #"coverage": Metric(_coverage_score, ["preds"]),
-    #"precision": Metric(skmetrics.precision_score),
+    "precision": Metric(_precision,['golds','preds']),
     #"recall": Metric(skmetrics.recall_score),
     #"f1": Metric(_f1_score, ["golds", "preds"]),
     #"f1_micro": Metric(_f1_micro_score, ["golds", "preds"]),
