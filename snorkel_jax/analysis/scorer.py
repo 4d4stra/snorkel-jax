@@ -99,10 +99,7 @@ class Scorer:
 
         for metric_name, metric in self.metrics.items():
             score = metric(golds, preds, probs)
-            if isinstance(score, dict):
-                metric_dict.update(score)
-            else:
-                metric_dict[metric_name] = score
+            metric_dict[metric_name] = score
 
         return metric_dict
 
