@@ -14,6 +14,7 @@ from tqdm import trange
 from snorkel_jax.utils.core import probs_to_preds
 from snorkel_jax.labeling.model.graph_utils import get_clique_tree
 from snorkel_jax.labeling.model.loss_functions import grad_Zloss,grad_invMUloss,grad_MUloss
+from snorkel_jax.analysis.scorer import Scorer
 #from snorkel.labeling.model.logger import Logger
 #from snorkel.types import Config
 #from snorkel.utils.config_utils import merge_config
@@ -300,6 +301,43 @@ class LabelModel:
         if return_probs:
             return Y_p, Y_probs
         return Y_p
+
+
+    def score(
+        self,
+        L: jnp.array,
+        Y: jnp.array,
+        metrics: Optional[List[str]] = ["accuracy"],
+        tie_break_policy: str = "abstain",
+    ) -> Dict[str, float]:
+        """Calculate one or more scores from user-specified and/or user-defined metrics.
+        Parameters
+        ----------
+        L
+            An [n,m] matrix with values in {-1,0,1,...,k-1}
+        Y
+            Gold labels associated with data points in L
+        metrics
+            A list of metric names
+        tie_break_policy
+            Policy to break ties when converting probabilistic labels to predictions
+        Returns
+        -------
+        Dict[str, float]
+            A dictionary mapping metric names to metric scores
+        """
+        if tie_break_policy == "abstain":  # pragma: no cover
+            logging.warning(
+                "Metrics calculated over data points with non-abstain labels only"
+            )
+
+        Y_pred, Y_prob = self.predict(
+            L, return_probs=True, tie_break_policy=tie_break_policy
+        )
+
+        scorer = Scorer(metrics=metrics)
+        results = scorer.score(Y, Y_pred, Y_prob)
+        return results
 
 
     def fit(
