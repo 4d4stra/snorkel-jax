@@ -84,14 +84,6 @@ def metric_score(
 #    return skmetrics.roc_auc_score(golds, probs[:, 1])
 
 
-#def _f1_score(golds: jnp.array, preds: jnp.array) -> float:
-#    if golds.max() <= 1:
-#        return skmetrics.f1_score(golds, preds)
-#    else:
-#        raise ValueError(
-#            "f1 not supported for multiclass. Try f1_micro or f1_macro instead."
-#        )
-
 
 #def _f1_micro_score(golds: jnp.array, preds: jnp.array) -> float:
 #    return skmetrics.f1_score(golds, preds, average="micro")
@@ -123,6 +115,18 @@ def _recall(golds: jnp.array, preds:jnp.array) -> dict:
         dict_out[class_i]=tp_i/(tp_i+fn_i)
     return dict_out
 
+
+def _f1_score(golds: jnp.array, preds:jnp.array) -> dict:
+    classes=jnp.unique(golds)
+    dict_out={}
+    for class_i in classes:
+        class_i=int(class_i)
+        tp_i=jnp.sum((preds==class_i) & (preds==golds))
+        fp_i=jnp.sum((preds==class_i) & (preds!=golds))
+        fn_i=jnp.sum((golds==class_i) & (preds!=golds))
+        dict_out[class_i]=2*tp_i/(2*tp_i+fp_i+fn_i)
+    return dict_out
+
 # See https://scikit-learn.org/stable/modules/classes.html#module-sklearn.metrics
 # for details on the definitions and available kwargs for all metrics from scikit-learn
 METRICS = {
@@ -130,7 +134,7 @@ METRICS = {
     #"coverage": Metric(_coverage_score, ["preds"]),
     "precision": Metric(_precision,['golds','preds']),
     "recall": Metric(_recall,['golds','preds']),
-    #"f1": Metric(_f1_score, ["golds", "preds"]),
+    "f1": Metric(_f1_score, ["golds", "preds"]),
     #"f1_micro": Metric(_f1_micro_score, ["golds", "preds"]),
     #"f1_macro": Metric(_f1_macro_score, ["golds", "preds"]),
     #"fbeta": Metric(skmetrics.fbeta_score),
