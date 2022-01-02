@@ -239,6 +239,58 @@ class LabelModel:
         if progress_bar:
             epochs.close()
         return opt_arr
+
+    def get_conditional_probs(self) -> jnp.array:
+        r"""Return the estimated conditional probabilities table given parameters mu.
+        Given a parameter vector mu, return the estimated conditional probabilites
+        table cprobs, where cprobs is an (m, k+1, k)-dim np.ndarray with:
+            cprobs[i, j, k] = P(\lf_i = j-1 | Y = k)
+        where m is the number of LFs, k is the cardinality, and cprobs includes the
+        conditional abstain probabilities P(\lf_i = -1 | Y = y).
+        Parameters
+        ----------
+        mu
+            An [m * k, k] np.ndarray with entries in [0, 1]
+        Returns
+        -------
+        np.ndarray
+            An [m, k + 1, k] np.ndarray conditional probabilities table.
+        """
+        cprobs = jnp.zeros((self.m, self.cardinality + 1, self.cardinality))
+        for i in range(self.m):
+            # si = self.c_data[(i,)]['start_index']
+            # ei = self.c_data[(i,)]['end_index']
+            # mu_i = mu[si:ei, :]
+            mu_i = self.mu[i * self.cardinality : (i + 1) * self.cardinality, :]
+            cprobs=cprobs.at[i, 1:, :].set(mu_i)
+
+            # The 0th row (corresponding to abstains) is the difference between
+            # the sums of the other rows and one, by law of total probability
+            cprobs=cprobs.at[i, 0, :].set(1 - mu_i.sum(axis=0))
+        return cprobs
+
+
+    def get_weights(self) -> jnp.array:
+        """Return the vector of learned LF weights for combining LFs.
+        Returns
+        -------
+        np.ndarray
+            [m,1] vector of learned LF weights for combining LFs.
+        Example
+        -------
+        >>> L = np.array([[1, 1, 1], [1, 1, -1], [-1, 0, 0], [0, 0, 0]])
+        >>> label_model = LabelModel(verbose=False)
+        >>> label_model.fit(L, seed=123)
+        >>> np.around(label_model.get_weights(), 2)  # doctest: +SKIP
+        array([0.99, 0.99, 0.99])
+        """
+        accs = jnp.zeros(self.m)
+        cprobs = self.get_conditional_probs()
+        for i in range(self.m):
+            accs=accs.at[i].set(jnp.diag(cprobs[i, 1:, :] @ self.P).sum())
+        return jnp.clip(accs / self.coverage, 1e-6, 1.0)
+
+
         
     def predict_proba(self, L: jnp.array) -> jnp.array:
         r"""Return label probabilities P(Y | \lambda).

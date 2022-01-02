@@ -135,9 +135,6 @@ METRICS = {
     "precision": Metric(_precision,['golds','preds']),
     "recall": Metric(_recall,['golds','preds']),
     "f1": Metric(_f1_score, ["golds", "preds"]),
-    #"f1_micro": Metric(_f1_micro_score, ["golds", "preds"]),
-    #"f1_macro": Metric(_f1_macro_score, ["golds", "preds"]),
-    #"fbeta": Metric(skmetrics.fbeta_score),
     #"matthews_corrcoef": Metric(skmetrics.matthews_corrcoef),
     #"roc_auc": Metric(_roc_auc_score, ["golds", "probs"]),
 }

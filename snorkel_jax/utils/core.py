@@ -159,3 +159,13 @@ def _get_mask(label_array: jnp.array, filter_values: List[int]) -> jnp.array:
     for value in filter_values:
         mask *= jnp.where(label_array != value, 1, 0).astype(bool)
     return mask
+
+
+def _confusion_matrix_(Y,L_i,labels):
+    cmat = jnp.zeros((len(labels), len(labels)))
+
+    for i,lab_i in enumerate(labels):
+        for k,lab_k in enumerate(labels):
+            cmat=cmat.at[i,k].set(jnp.sum((Y==lab_i) & (L_i==lab_k)))
+    return cmat
+confusion_matrix=jax.jit(_confusion_matrix_)
