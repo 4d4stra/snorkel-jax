@@ -1,4 +1,4 @@
-from snorkel.map import BaseMapper, LambdaMapper, Mapper, lambda_mapper
+from snorkel_jax.map import BaseMapper, LambdaMapper, Mapper, lambda_mapper
 
 """Base classes for preprocessors.
 A preprocessor is a data point to data point mapping in a labeling

@@ -9,7 +9,7 @@ import jax
 import optax
 from tqdm import trange
 
-#from snorkel.labeling.analysis import LFAnalysis
+from snorkel_jax.labeling.analysis import LFAnalysis
 #from snorkel_jax.labeling.model.base_labeler import BaseLabeler
 from snorkel_jax.utils.core import probs_to_preds
 from snorkel_jax.labeling.model.graph_utils import get_clique_tree
@@ -469,8 +469,8 @@ class LabelModel:
         self._set_constants(L_shift)
         self._set_class_balance(class_balance, Y_dev)
         self._set_dependencies(deps)
-        ##lf_analysis = LFAnalysis(L_train)
-        ##self.coverage = lf_analysis.lf_coverages()
+        lf_analysis = LFAnalysis(L_train)
+        self.coverage = lf_analysis.lf_coverages()
 
         # Compute O and initialize params
         ##if self.config.verbose:  # pragma: no cover

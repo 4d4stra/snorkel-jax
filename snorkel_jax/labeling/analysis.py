@@ -257,8 +257,13 @@ class LFAnalysis:
             0,
             jnp.where(self.L == Y.reshape((len(self.L),1)), 1, -1),
         )
-        with jnp.errstate(divide="ignore", invalid="ignore"):
+        #with jnp.errstate(divide="ignore", invalid="ignore"):
+        try:
             return jnp.nan_to_num(0.5 * (X.sum(axis=0) / (self.L != -1).sum(axis=0) + 1))
+        except ZeroDivisionError:
+            pass
+        except:
+            raise
 
     def lf_empirical_probs(self, Y: jnp.array, k: int) -> jnp.array:
         """Estimate conditional probability tables for each LF.
@@ -286,7 +291,7 @@ class LFAnalysis:
         for y in range(k):
             is_y = jnp.where(Y == y, 1, 0)
             for j, l in product(range(m), range(-1, k)):
-                P[j, l + 1, y] = jnp.where(self.L[:, j] == l, 1, 0) @ is_y / is_y.sum()
+                P=P.at[j, l + 1, y].set(jnp.where(self.L[:, j] == l, 1, 0) @ is_y / is_y.sum())
         return P
 
     def lf_summary(
