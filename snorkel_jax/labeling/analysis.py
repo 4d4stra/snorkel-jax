@@ -10,7 +10,7 @@ from snorkel_jax.utils.core import confusion_matrix
 
 from snorkel_jax.utils.core import to_int_label_array
 
-#from snorkel_jax.labeling.lf.core import LabelingFunction
+from snorkel_jax.labeling.lf.core import LabelingFunction
 
 
 class LFAnalysis:
