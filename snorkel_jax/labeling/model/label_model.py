@@ -15,16 +15,68 @@ from snorkel_jax.utils.core import probs_to_preds
 from snorkel_jax.labeling.model.graph_utils import get_clique_tree
 from snorkel_jax.labeling.model.loss_functions import grad_Zloss,grad_invMUloss,grad_MUloss
 from snorkel_jax.analysis.scorer import Scorer
-#from snorkel.labeling.model.logger import Logger
-#from snorkel.types import Config
-#from snorkel.utils.config_utils import merge_config
-#from snorkel.utils.lr_schedulers import LRSchedulerConfig
-#from snorkel.utils.optimizers import OptimizerConfig
+from snorkel_jax.labeling.model.logger import Logger
+from snorkel_jax.types import Config
+from snorkel_jax.utils.config import merge_config
+from snorkel_jax.utils.lr_schedulers import LRSchedulerConfig
+from snorkel_jax.utils.optimizers import OptimizerConfig
+
+
+class TrainConfig(Config):
+    """Settings for the fit() method of LabelModel.
+    Parameters
+    ----------
+    n_epochs
+        The number of epochs to train (where each epoch is a single optimization step)
+    lr
+        Base learning rate (will also be affected by lr_scheduler choice and settings)
+    l2
+        Centered L2 regularization strength
+    optimizer
+        Which optimizer to use (one of ["sgd", "adam", "adamax"])
+    optimizer_config
+        Settings for the optimizer
+    lr_scheduler
+        Which lr_scheduler to use (one of ["constant", "linear", "exponential", "step"])
+    lr_scheduler_config
+        Settings for the LRScheduler
+    prec_init
+        LF precision initializations / priors
+    seed
+        A random seed to initialize the random number generator with
+    log_freq
+        Report loss every this many epochs (steps)
+    mu_eps
+        Restrict the learned conditional probabilities to [mu_eps, 1-mu_eps]
+    """
+
+    n_epochs: int = 100
+    lr: float = 0.01
+    l2: float = 0.0
+    optimizer: str = "sgd"
+    optimizer_config: OptimizerConfig = OptimizerConfig()  # type: ignore
+    lr_scheduler: str = "constant"
+    lr_scheduler_config: LRSchedulerConfig = LRSchedulerConfig()  # type: ignore
+    prec_init: Union[float, List[float], jnp.array] = 0.7
+    seed: int = 13#np.random.randint(1e6)
+    log_freq: int = 10
+    mu_eps: Optional[float] = None
+
 
 class _CliqueData(NamedTuple):
     start_index: int
     end_index: int
     max_cliques: Set[int]
+
+class LabelModelConfig(Config):
+    """Settings for the LabelModel initialization.
+    Parameters
+    ----------
+    verbose
+        Whether to include print statements
+    """
+
+    verbose: bool = True
 
 
 class LabelModel:
@@ -68,9 +120,14 @@ class LabelModel:
     """
 
     def __init__(self, cardinality: int = 2, random_seed: int = 13, **kwargs: Any) -> None:
-        #self.config: LabelModelConfig = LabelModelConfig(**kwargs)
+        self.config: LabelModelConfig = LabelModelConfig(**kwargs)
         self.cardinality = cardinality
         self.random_key = jax.random.PRNGKey(random_seed)
+
+    def _set_logger(self) -> None:
+        self.logger = Logger(self.train_config.log_freq)
+        if self.config.verbose:
+            logging.basicConfig(level=logging.INFO)
         
     def _set_constants(self, L: jnp.array) -> None:
         self.n, self.m = L.shape
@@ -455,8 +512,12 @@ class LabelModel:
         >>> label_model.fit(L, Y_dev=Y_dev, seed=2020, lr=0.05)
         >>> label_model.fit(L, class_balance=[0.7, 0.3], n_epochs=200, l2=0.4)
         """
+        self.train_config: TrainConfig = merge_config(  # type:ignore
+            TrainConfig(), kwargs  # type:ignore
+        )
+
         # Set Logger
-        ##self._set_logger()
+        self._set_logger()
 
         # shifted so that abstentions (-1) can very simply be excluded from the overlap matrix
         L_shift = L_train + 1  # convert to {0, 1, ..., k}
@@ -473,19 +534,21 @@ class LabelModel:
         self.coverage = lf_analysis.lf_coverages()
 
         # Compute O and initialize params
-        ##if self.config.verbose:  # pragma: no cover
-        ##    logging.info("Computing O...")
+        if self.config.verbose:  # pragma: no cover
+            logging.info("Computing O...")
         self._generate_O(L_shift)
-        self._init_mu()
         
         # Estimate \mu
-        ##if self.config.verbose:  # pragma: no cover
-        ##    logging.info(r"Estimating \mu...")
+        if self.config.verbose:  # pragma: no cover
+            logging.info(r"Estimating \mu...")
+        self._init_mu()
 
         # Set training components
         ##self._set_optimizer()
         ##self._set_lr_scheduler()
-        
+        if self.config.verbose:  # pragma: no cover
+            logging.info("Training Model...")
+
         #if label functions are not independent
         if self.lf_structure:
             cond_O=jnp.linalg.cond(self.O)
@@ -513,5 +576,5 @@ class LabelModel:
         ##self._break_col_permutation_symmetry()
 
         # Print confusion matrix if applicable
-        ##if self.config.verbose:  # pragma: no cover
-        ##    logging.info("Finished Training")
+        if self.config.verbose:  # pragma: no cover
+            logging.info("Finished Training")
