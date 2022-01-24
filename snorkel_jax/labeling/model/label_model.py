@@ -168,7 +168,7 @@ class LabelModel:
         if lr_scheduler_name == "constant":
             lr_scheduler = self.train_config.lr
         elif lr_scheduler_name == "linear":
-            total_steps = self.train_config.n_epochs
+            total_steps = self.n_epochs
             lr_scheduler = optax.linear_schedule(self.train_config.lr, self.train_config.lr*0.1, total_steps, transition_begin=0)
         #elif lr_scheduler_name == "exponential":
         #    lr_scheduler = optim.lr_scheduler.ExponentialLR(
@@ -187,27 +187,27 @@ class LabelModel:
             self.lr_scheduler = lr_scheduler
 
     def _set_warmup_scheduler(self) -> None:
-        if self.train_config.lr_scheduler_config.warmup_steps:
+        if self.train_config.lr_scheduler_config.warmup_steps!=0:
             warmup_steps = self.train_config.lr_scheduler_config.warmup_steps
             if warmup_steps < 0:
                 raise ValueError("warmup_steps much greater or equal than 0.")
             self.warmup_steps = int(warmup_steps)
+            self.n_epochs=self.train_config.n_epochs
             warmup_scheduler = optax.linear_schedule(0, self.train_config.lr, self.warmup_steps, transition_begin=0)
             if self.config.verbose:  # pragma: no cover
                 logging.info(f"Warmup {self.warmup_steps} steps.")
 
-        #elif self.train_config.lr_scheduler_config.warmup_percentage:
-        #    warmup_percentage = self.train_config.lr_scheduler_config.warmup_percentage
-        #    self.warmup_steps = int(warmup_percentage * self.train_config.n_epochs)
-        #    linear_warmup_func = lambda x: x / self.warmup_steps
-        #    warmup_scheduler = optim.lr_scheduler.LambdaLR(  # type: ignore
-        #        self.optimizer, linear_warmup_func
-        #    )
-        #    if self.config.verbose:  # pragma: no cover
-        #        logging.info(f"Warmup {self.warmup_steps} steps.")
+        elif self.train_config.lr_scheduler_config.warmup_percentage:
+            warmup_percentage = self.train_config.lr_scheduler_config.warmup_percentage
+            self.warmup_steps = int(warmup_percentage * self.train_config.n_epochs)
+            self.n_epochs=self.train_config.n_epochs-self.warmup_steps
+            warmup_scheduler = optax.linear_schedule(0, self.train_config.lr, self.warmup_steps, transition_begin=0)
+            if self.config.verbose:  # pragma: no cover
+                logging.info(f"Warmup {self.warmup_steps} steps.")
 
         else:
             warmup_scheduler = None
+            self.n_epochs=self.train_config.n_epochs
             self.warmup_steps = 0
 
         self.warmup_scheduler = warmup_scheduler
@@ -362,7 +362,7 @@ class LabelModel:
         
         opt_state = self.optimizer.init(opt_arr)
 
-        n_epochs=self.warmup_steps+self.train_config.n_epochs
+        n_epochs=self.warmup_steps+self.n_epochs
         if progress_bar:
             epochs = trange(start_iteration, n_epochs, unit="epoch")
         else:
