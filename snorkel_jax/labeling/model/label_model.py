@@ -52,7 +52,7 @@ class TrainConfig(Config):
 
     n_epochs: int = 100
     lr: float = 0.01
-    l2: float = 0.0
+    weight_decay: float = 0.0
     optimizer: str = "sgd"
     optimizer_config: OptimizerConfig = OptimizerConfig()  # type: ignore
     lr_scheduler: str = "constant"
@@ -128,6 +128,40 @@ class LabelModel:
         self.logger = Logger(self.train_config.log_freq)
         if self.config.verbose:
             logging.basicConfig(level=logging.INFO)
+
+    def _set_optimizer(self) -> None:
+        optimizer_config = self.train_config.optimizer_config
+        optimizer_name = self.train_config.optimizer
+        #optimizer: optim.Optimizer  # type: ignore
+
+        if optimizer_name == "sgd":
+            #momentum (Optional[float]) – (default None), the decay rate used by the momentum term, when it is set to None, then momentum is not used at all.
+            #nesterov (default False) – whether nesterov momentum is used.
+            optimizer=optax.sgd(learning_rate=self.train_config.lr)
+            #optimizer = optim.SGD(  # type: ignore
+            #    parameters,
+            #    lr=self.train_config.lr,
+            #    weight_decay=self.train_config.l2,
+            #    **optimizer_config.sgd_config._asdict(),
+            #)
+        elif optimizer_name == "adam":
+            optimizer=optax.adam(learning_rate=self.train_config.lr)
+            #optimizer = optim.Adam(
+            #    parameters,
+            #    lr=self.train_config.lr,
+            #    weight_decay=self.train_config.l2,
+            #    **optimizer_config.adam_config._asdict(),
+            #)
+        elif optimizer_name == "rmsprop":
+            optimizer=optax.rmsprop(learning_rate=self.train_config.lr)
+        else:
+            raise ValueError(f"Unrecognized optimizer option '{optimizer_name}'")
+
+        print("Weight decay:",self.train_config.weight_decay)
+        self.optimizer = optax.chain(
+            optimizer,
+            optax.additive_weight_decay(weight_decay=self.train_config.weight_decay)
+        )
         
     def _set_constants(self, L: jnp.array) -> None:
         self.n, self.m = L.shape
@@ -273,9 +307,12 @@ class LabelModel:
         n_epochs=500
         progress_bar=True
         start_iteration=0
+
+        # Set training components
+        self._set_optimizer()
+        ##self._set_lr_scheduler()
         
-        optimizer=optax.sgd(learning_rate=0.01)
-        opt_state = optimizer.init(opt_arr)
+        opt_state = self.optimizer.init(opt_arr)
 
         if progress_bar:
             epochs = trange(start_iteration, n_epochs, unit="epoch")
@@ -288,7 +325,7 @@ class LabelModel:
             # compute the gradient
             grads = func_loss(opt_arr,**additional_inputs)
             #compute the updates
-            updates, opt_state = optimizer.update(grads, opt_state)
+            updates, opt_state = self.optimizer.update(grads, opt_state, opt_arr)
             #apply updates to Z
             opt_arr = optax.apply_updates(opt_arr, updates)
 
@@ -478,8 +515,8 @@ class LabelModel:
             lr
                 Base learning rate (will also be affected by lr_scheduler choice
                 and settings), default is 0.01
-            l2
-                Centered L2 regularization strength, default is 0.0
+            weight_decay
+                Weight decay parameter, default is 0.0
             optimizer
                 Which optimizer to use (one of ["sgd", "adam", "adamax"]),
                 default is "sgd"
@@ -543,9 +580,6 @@ class LabelModel:
             logging.info(r"Estimating \mu...")
         self._init_mu()
 
-        # Set training components
-        ##self._set_optimizer()
-        ##self._set_lr_scheduler()
         if self.config.verbose:  # pragma: no cover
             logging.info("Training Model...")
 
