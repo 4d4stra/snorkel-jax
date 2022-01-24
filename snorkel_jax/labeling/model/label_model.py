@@ -132,12 +132,11 @@ class LabelModel:
     def _set_optimizer(self) -> None:
         optimizer_config = self.train_config.optimizer_config
         optimizer_name = self.train_config.optimizer
-        #optimizer: optim.Optimizer  # type: ignore
 
         if optimizer_name == "sgd":
             #momentum (Optional[float]) – (default None), the decay rate used by the momentum term, when it is set to None, then momentum is not used at all.
             #nesterov (default False) – whether nesterov momentum is used.
-            optimizer=optax.sgd(learning_rate=self.train_config.lr)
+            optimizer=optax.sgd(learning_rate=self.lr_scheduler)
             #optimizer = optim.SGD(  # type: ignore
             #    parameters,
             #    lr=self.train_config.lr,
@@ -145,23 +144,44 @@ class LabelModel:
             #    **optimizer_config.sgd_config._asdict(),
             #)
         elif optimizer_name == "adam":
-            optimizer=optax.adam(learning_rate=self.train_config.lr)
-            #optimizer = optim.Adam(
-            #    parameters,
-            #    lr=self.train_config.lr,
-            #    weight_decay=self.train_config.l2,
-            #    **optimizer_config.adam_config._asdict(),
-            #)
+            optimizer=optax.adam(learning_rate=self.lr_scheduler)
         elif optimizer_name == "rmsprop":
-            optimizer=optax.rmsprop(learning_rate=self.train_config.lr)
+            optimizer=optax.rmsprop(learning_rate=self.lr_scheduler)
         else:
             raise ValueError(f"Unrecognized optimizer option '{optimizer_name}'")
 
-        print("Weight decay:",self.train_config.weight_decay)
+
         self.optimizer = optax.chain(
             optimizer,
             optax.additive_weight_decay(weight_decay=self.train_config.weight_decay)
         )
+
+    def _set_lr_scheduler(self) -> None:
+        # Set warmup scheduler
+        #self._set_warmup_scheduler()
+
+        # Set lr scheduler
+        lr_scheduler_name = self.train_config.lr_scheduler
+        lr_scheduler_config = self.train_config.lr_scheduler_config
+        #lr_scheduler: Optional[optim.lr_scheduler._LRScheduler]
+
+        if lr_scheduler_name == "constant":
+            lr_scheduler = self.train_config.lr
+        elif lr_scheduler_name == "linear":
+            total_steps = self.train_config.n_epochs
+            lr_scheduler = optax.linear_schedule(self.train_config.lr, self.train_config.lr*0.1, total_steps, transition_begin=0)
+        #elif lr_scheduler_name == "exponential":
+        #    lr_scheduler = optim.lr_scheduler.ExponentialLR(
+        #        self.optimizer, **lr_scheduler_config.exponential_config._asdict()
+        #    )
+        #elif lr_scheduler_name == "step":
+        #    lr_scheduler = optim.lr_scheduler.StepLR(
+        #        self.optimizer, **lr_scheduler_config.step_config._asdict()
+        #    )
+        else:
+            raise ValueError(f"Unrecognized lr scheduler option '{lr_scheduler_name}'")
+
+        self.lr_scheduler = lr_scheduler
         
     def _set_constants(self, L: jnp.array) -> None:
         self.n, self.m = L.shape
@@ -309,8 +329,8 @@ class LabelModel:
         start_iteration=0
 
         # Set training components
+        self._set_lr_scheduler()
         self._set_optimizer()
-        ##self._set_lr_scheduler()
         
         opt_state = self.optimizer.init(opt_arr)
 
