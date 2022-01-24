@@ -158,7 +158,7 @@ class LabelModel:
 
     def _set_lr_scheduler(self) -> None:
         # Set warmup scheduler
-        #self._set_warmup_scheduler()
+        self._set_warmup_scheduler()
 
         # Set lr scheduler
         lr_scheduler_name = self.train_config.lr_scheduler
@@ -181,7 +181,36 @@ class LabelModel:
         else:
             raise ValueError(f"Unrecognized lr scheduler option '{lr_scheduler_name}'")
 
-        self.lr_scheduler = lr_scheduler
+        if self.warmup_scheduler:
+            self.lr_scheduler=optax.join_schedules([self.warmup_scheduler,lr_scheduler],[self.warmup_steps])
+        else:
+            self.lr_scheduler = lr_scheduler
+
+    def _set_warmup_scheduler(self) -> None:
+        if self.train_config.lr_scheduler_config.warmup_steps:
+            warmup_steps = self.train_config.lr_scheduler_config.warmup_steps
+            if warmup_steps < 0:
+                raise ValueError("warmup_steps much greater or equal than 0.")
+            self.warmup_steps = int(warmup_steps)
+            warmup_scheduler = optax.linear_schedule(0, self.train_config.lr, self.warmup_steps, transition_begin=0)
+            if self.config.verbose:  # pragma: no cover
+                logging.info(f"Warmup {self.warmup_steps} steps.")
+
+        #elif self.train_config.lr_scheduler_config.warmup_percentage:
+        #    warmup_percentage = self.train_config.lr_scheduler_config.warmup_percentage
+        #    self.warmup_steps = int(warmup_percentage * self.train_config.n_epochs)
+        #    linear_warmup_func = lambda x: x / self.warmup_steps
+        #    warmup_scheduler = optim.lr_scheduler.LambdaLR(  # type: ignore
+        #        self.optimizer, linear_warmup_func
+        #    )
+        #    if self.config.verbose:  # pragma: no cover
+        #        logging.info(f"Warmup {self.warmup_steps} steps.")
+
+        else:
+            warmup_scheduler = None
+            self.warmup_steps = 0
+
+        self.warmup_scheduler = warmup_scheduler
         
     def _set_constants(self, L: jnp.array) -> None:
         self.n, self.m = L.shape
@@ -324,7 +353,6 @@ class LabelModel:
         self.mu = mu_init.clone() * jax.random.uniform(self.random_key)
 
     def _train_model(self,func_loss,opt_arr,additional_inputs):
-        n_epochs=500
         progress_bar=True
         start_iteration=0
 
@@ -334,6 +362,7 @@ class LabelModel:
         
         opt_state = self.optimizer.init(opt_arr)
 
+        n_epochs=self.warmup_steps+self.train_config.n_epochs
         if progress_bar:
             epochs = trange(start_iteration, n_epochs, unit="epoch")
         else:
