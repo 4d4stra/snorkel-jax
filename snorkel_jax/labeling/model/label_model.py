@@ -168,9 +168,9 @@ class LabelModel:
         if lr_scheduler_name == "constant":
             lr_scheduler = self.train_config.lr
         elif lr_scheduler_name == "linear":
-            total_steps = self.n_epochs
-            lr_scheduler = optax.linear_schedule(self.train_config.lr, self.train_config.lr*0.1, total_steps, transition_begin=0)
-        #elif lr_scheduler_name == "exponential":
+            lr_scheduler = optax.linear_schedule(self.train_config.lr, self.train_config.lr*0.1, self.n_epochs, transition_begin=0)
+        elif lr_scheduler_name == "exponential":
+            lr_scheduler=optax.exponential_decay(self.train_config.lr, self.n_epochs, 0.1)
         #    lr_scheduler = optim.lr_scheduler.ExponentialLR(
         #        self.optimizer, **lr_scheduler_config.exponential_config._asdict()
         #    )
