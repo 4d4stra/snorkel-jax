@@ -30,7 +30,7 @@ class TrainConfig(Config):
         The number of epochs to train (where each epoch is a single optimization step)
     lr
         Base learning rate (will also be affected by lr_scheduler choice and settings)
-    l2
+    weight_decay
         Centered L2 regularization strength
     optimizer
         Which optimizer to use (one of ["sgd", "adam", "adamax"])
