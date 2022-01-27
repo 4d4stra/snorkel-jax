@@ -13,7 +13,7 @@ from snorkel_jax.labeling.analysis import LFAnalysis
 #from snorkel_jax.labeling.model.base_labeler import BaseLabeler
 from snorkel_jax.utils.core import probs_to_preds
 from snorkel_jax.labeling.model.graph_utils import get_clique_tree
-from snorkel_jax.labeling.model.loss_functions import grad_Zloss,grad_invMUloss,grad_MUloss
+from snorkel_jax.labeling.model.loss_functions import grad_Zloss,grad_invMUloss,grad_MUloss,Zloss,invMUloss,MUloss
 from snorkel_jax.analysis.scorer import Scorer
 from snorkel_jax.labeling.model.logger import Logger
 from snorkel_jax.types import Config
@@ -21,6 +21,7 @@ from snorkel_jax.utils.config import merge_config
 from snorkel_jax.utils.lr_schedulers import LRSchedulerConfig
 from snorkel_jax.utils.optimizers import OptimizerConfig
 
+Metrics = Dict[str, float]
 
 class TrainConfig(Config):
     """Settings for the fit() method of LabelModel.
@@ -77,6 +78,7 @@ class LabelModelConfig(Config):
     """
 
     verbose: bool = True
+    seed: int = 11
 
 
 class LabelModel:
@@ -119,15 +121,26 @@ class LabelModel:
         Random seed
     """
 
-    def __init__(self, cardinality: int = 2, random_seed: int = 13, **kwargs: Any) -> None:
+    def __init__(self, cardinality: int = 2, **kwargs: Any) -> None:
         self.config: LabelModelConfig = LabelModelConfig(**kwargs)
         self.cardinality = cardinality
-        self.random_key = jax.random.PRNGKey(random_seed)
+        self.random_key = jax.random.PRNGKey(self.config.seed)
 
     def _set_logger(self) -> None:
         self.logger = Logger(self.train_config.log_freq)
         if self.config.verbose:
             logging.basicConfig(level=logging.INFO)
+
+    def _execute_logging(self, func_loss,opt_arr,additional_inputs,metrics_dict) -> Metrics:
+        #only compute loss when logging
+        if self.logger.check():
+            # Always add average loss
+            loss=func_loss(opt_arr,**additional_inputs)
+            metrics_dict = {"train/loss": float(loss)}
+            if self.config.verbose:
+                self.logger.log(metrics_dict)
+
+        return metrics_dict
 
     def _set_optimizer(self) -> None:
         optimizer_config = self.train_config.optimizer_config
@@ -336,7 +349,10 @@ class LabelModel:
         #   mu_init = P(\lf=y|Y=y) = P(\lf=y) * prec_i / P(Y=y)
 
         # Handle single values
-        prec_init = 0.7 * jnp.ones(self.m)
+        if type(self.train_config.prec_init)==float:
+            prec_init = self.train_config.prec_init * jnp.ones(self.m)
+        else:
+            prec_init = jnp.array(self.train_config.prec_init) * jnp.ones(self.m)
 
         # Get the per-value labeling propensities
         # Note that self.O must have been computed already!
@@ -352,7 +368,7 @@ class LabelModel:
         # Initialize randomly based on self.mu_init
         self.mu = mu_init.clone() * jax.random.uniform(self.random_key)
 
-    def _train_model(self,func_loss,opt_arr,additional_inputs):
+    def _train_model(self,func_loss,func_grad,opt_arr,additional_inputs):
         progress_bar=True
         start_iteration=0
 
@@ -368,15 +384,22 @@ class LabelModel:
         else:
             epochs = range(start_iteration, n_epochs)
 
+        metrics_hist = {}  # The most recently seen value for all metrics
+        metrics_dict={}
 
         for epoch in epochs:
 
             # compute the gradient
-            grads = func_loss(opt_arr,**additional_inputs)
+            grads = func_grad(opt_arr,**additional_inputs)
             #compute the updates
             updates, opt_state = self.optimizer.update(grads, opt_state, opt_arr)
             #apply updates to Z
             opt_arr = optax.apply_updates(opt_arr, updates)
+
+            # Calculate metrics, log, and checkpoint as necessary
+            if func_loss:
+                metrics_dict = self._execute_logging(func_loss,opt_arr,additional_inputs,metrics_dict)
+                metrics_hist.update(metrics_dict)
 
         # Cleanup progress bar if enabled
         if progress_bar:
@@ -601,6 +624,7 @@ class LabelModel:
         self.train_config: TrainConfig = merge_config(  # type:ignore
             TrainConfig(), kwargs  # type:ignore
         )
+        self.random_key = jax.random.PRNGKey(self.config.seed)
 
         # Set Logger
         self._set_logger()
@@ -641,17 +665,17 @@ class LabelModel:
             
             #estimate Z
             self.Z = jax.random.normal(self.random_key,(self.d, self.cardinality))
-            self.Z = self._train_model(grad_Zloss,self.Z,{'O_inv':self.O_inv,'mask':self.mask})
+            self.Z = self._train_model(None,grad_Zloss,self.Z,{'O_inv':self.O_inv,'mask':self.mask})
             
             #compute Q (as estimated from Z) = \mu P \mu^T
             self._compute_Q()
     
             #estimate mu
-            self.mu = self._train_model(grad_invMUloss,self.mu,{'Q':self.Q,'P':self.P,'O':self.O,'mask':self.mask})
+            self.mu = self._train_model(invMUloss,grad_invMUloss,self.mu,{'Q':self.Q,'P':self.P,'O':self.O,'mask':self.mask})
             
         #label functions are independent
         else:
-            self.mu = self._train_model(grad_MUloss,self.mu,{'O':self.O,'P':self.P,'mask':self.mask})
+            self.mu = self._train_model(MUloss,grad_MUloss,self.mu,{'O':self.O,'P':self.P,'mask':self.mask})
 
         
         # Post-processing operations on mu
