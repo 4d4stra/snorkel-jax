@@ -7,20 +7,27 @@ class SGDOptimizerConfig(Config):
     """Settings for SGD optimizer."""
 
     momentum: float = 0.9
+    nesterov: bool = False
 
 
 class AdamOptimizerConfig(Config):
     """Settings for Adam optimizer."""
 
-    amsgrad: bool = False
-    betas: Tuple[float, float] = (0.9, 0.999)
+    b1: float=0.9
+    b2: float=0.999
+    eps: float=1e-08
+    eps_root: float=0.0
 
 
-class AdamaxOptimizerConfig(Config):
-    """Settings for Adamax optimizer."""
+class RMSPropOptimizerConfig(Config):
+    """Settings for RMSProp optimizer."""
 
-    betas: Tuple[float, float] = (0.9, 0.999)
+    momentum: float = 0.9
+    nesterov: bool = False
     eps: float = 1e-8
+    decay: float = 0.9
+    initial_scale: float = 0.0
+    centered: bool=False
 
 
 class OptimizerConfig(Config):
@@ -28,4 +35,4 @@ class OptimizerConfig(Config):
 
     sgd_config: SGDOptimizerConfig = SGDOptimizerConfig()  # type:ignore
     adam_config: AdamOptimizerConfig = AdamOptimizerConfig()  # type:ignore
-    adamax_config: AdamaxOptimizerConfig = AdamaxOptimizerConfig()  # type:ignore
+    rmsprop_config: RMSPropOptimizerConfig = RMSPropOptimizerConfig()  # type:ignore

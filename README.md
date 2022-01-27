@@ -26,6 +26,18 @@ some optimizations in the way things are computed in LFAnalysis
 | mu_eps | Restrict the learned conditional probabilities to [mu_eps, 1-mu_eps] | min(0.01, 1 / 10 ** jnp.ceil(jnp.log10(self.n))) | float |
 
 Optimizer Config
-|<td rowspan=4>L1 Name</td>|
-| Parameter | Description | Default | Valid Types |
-| --- | --- | --- | --- |
+
+| Config Key | Parameter | Description | Default | Valid Types |
+| --- | --- | --- | --- | --- |
+| sgd_config | momentum | the decay rate used by the momentum term, when it is set to None, then momentum is not used at all | 0.9 | float, None |
+| sgd_config | nesterov | whether nesterov momentum is used | False | bool |
+| adam_config | b1 | the exponential decay rate to track the first moment of past gradients | 0.9 | float |
+| adam_config | b2 | the exponential decay rate to track the second moment of past gradients | 0.999 | float |
+| adam_config | eps | a small constant applied to denominator outside of the square root (as in the Adam paper) to avoid dividing by zero when rescaling. | 1e-8 | float |
+| adam_config | eps_root | a small constant applied to denominator inside the square root (as in RMSProp), to avoid dividing by zero when rescaling. This is needed for example when computing (meta-)gradients through Adam. | 0.0 | float |
+| rmsprop_config | decay | the decay used to track the magnitude of previous gradients | 0.9 | float |
+| rmsprop_config | eps | a small numerical constant to avoid dividing by zero when rescaling | 1e-8 | float |
+| rmsprop_config | initial_scale | initialisation of accumulators tracking the magnitude of previous updates. PyTorch uses 0, TF1 uses 1. When reproducing results from a paper, verify the value used by the authors. | 0 | float |
+| rmsprop_config | centered whether the second moment or the variance of the past gradients is used to rescale the latest gradients | False | bool |
+| rmsprop_config | momentum | the decay rate used by the momentum term, when it is set to None, then momentum is not used at all | 0.9 | float, None |
+| rmsprop_config | nesterov | whether nesterov momentum is used | False | bool |

@@ -147,19 +147,11 @@ class LabelModel:
         optimizer_name = self.train_config.optimizer
 
         if optimizer_name == "sgd":
-            #momentum (Optional[float]) – (default None), the decay rate used by the momentum term, when it is set to None, then momentum is not used at all.
-            #nesterov (default False) – whether nesterov momentum is used.
-            optimizer=optax.sgd(learning_rate=self.lr_scheduler)
-            #optimizer = optim.SGD(  # type: ignore
-            #    parameters,
-            #    lr=self.train_config.lr,
-            #    weight_decay=self.train_config.l2,
-            #    **optimizer_config.sgd_config._asdict(),
-            #)
+            optimizer=optax.sgd(learning_rate=self.lr_scheduler,**optimizer_config.sgd_config._asdict())
         elif optimizer_name == "adam":
-            optimizer=optax.adam(learning_rate=self.lr_scheduler)
+            optimizer=optax.adam(learning_rate=self.lr_scheduler,**optimizer_config.adam_config._asdict())
         elif optimizer_name == "rmsprop":
-            optimizer=optax.rmsprop(learning_rate=self.lr_scheduler)
+            optimizer=optax.rmsprop(learning_rate=self.lr_scheduler,**optimizer_config.rmsprop_config._asdict())
         else:
             raise ValueError(f"Unrecognized optimizer option '{optimizer_name}'")
 

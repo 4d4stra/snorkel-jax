@@ -7,13 +7,6 @@ class ExponentialLRSchedulerConfig(Config):
     gamma: float = 0.9
 
 
-class StepLRSchedulerConfig(Config):
-    """Settings for Step decay learning rate scheduler."""
-
-    gamma: float = 0.9
-    step_size: int = 5
-
-
 class LRSchedulerConfig(Config):
     """Settings common to all LRSchedulers.
     Parameters
@@ -40,4 +33,3 @@ class LRSchedulerConfig(Config):
     warmup_percentage: float = 0.0  # warm up percentage
     min_lr: float = 0.0  # minimum learning rate
     exponential_config: ExponentialLRSchedulerConfig = ExponentialLRSchedulerConfig()  # type:ignore
-    step_config: StepLRSchedulerConfig = StepLRSchedulerConfig()  # type:ignore
