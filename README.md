@@ -26,6 +26,6 @@ some optimizations in the way things are computed in LFAnalysis
 | mu_eps | Restrict the learned conditional probabilities to [mu_eps, 1-mu_eps] | min(0.01, 1 / 10 ** jnp.ceil(jnp.log10(self.n))) | float |
 
 Optimizer Config
-| General parameters |
+|<td rowspan=4>L1 Name</td>|
 | Parameter | Description | Default | Valid Types |
 | --- | --- | --- | --- |
