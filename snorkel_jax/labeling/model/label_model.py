@@ -368,6 +368,24 @@ class LabelModel:
         # Initialize randomly based on self.mu_init
         self.mu = mu_init.clone() * jax.random.uniform(self.random_key)
 
+    def _clip_params(self) -> None:
+        """Clamp the values of the learned parameter vector.
+        Clamp the entries of self.mu to be in [mu_eps, 1 - mu_eps], where mu_eps is
+        either set by the user, or defaults to 1 / 10 ** np.ceil(np.log10(self.n)).
+        Note that if mu_eps is set too high, e.g. in sparse settings where LFs
+        mostly abstain, this will result in learning conditional probabilities all
+        equal to mu_eps (and/or 1 - mu_eps)!  See issue #1422.
+        Note: Use user-provided value of mu_eps in train_config, else default to
+            mu_eps = 1 / 10 ** np.ceil(np.log10(self.n))
+        this rounding is done to make it more obvious when the parameters have been
+        clamped.
+        """
+        if self.train_config.mu_eps is not None:
+            mu_eps = self.train_config.mu_eps
+        else:
+            mu_eps = min(0.01, 1 / 10 ** jnp.ceil(jnp.log10(self.n)))
+        self.mu = jnp.clip(self.mu,a_min=mu_eps, a_max=1 - mu_eps)  # type: ignore
+
     def _train_model(self,func_loss,func_grad,opt_arr,additional_inputs):
         progress_bar=True
         start_iteration=0
@@ -679,7 +697,7 @@ class LabelModel:
 
         
         # Post-processing operations on mu
-        ##self._clamp_params()
+        self._clip_params()
         ##self._break_col_permutation_symmetry()
 
         # Print confusion matrix if applicable

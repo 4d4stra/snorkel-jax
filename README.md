@@ -18,7 +18,5 @@ some optimizations in the way things are computed in LFAnalysis
 | lr_scheduler_config | Settings for the LRScheduler (see below) | | dict |
 | prec_init | LF precision initializations / priors | 0.7 | float, list |
 | seed | A random seed to initialize the random number generator with; due to the way JAX generates random numbers, this will be the seed for each operation that requires random number generation | 11 | int |
-| log_freq | Report loss every <log_freq> steps | 10 | int |
-            mu_eps
-                Restrict the learned conditional probabilities to
-                [mu_eps, 1-mu_eps], default is None
+| log_freq | Report loss every log_freq steps | 10 | int |
+| mu_eps | Restrict the learned conditional probabilities to [mu_eps, 1-mu_eps] | min(0.01, 1 / 10 ** jnp.ceil(jnp.log10(self.n))) | float |
