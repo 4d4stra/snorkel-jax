@@ -173,16 +173,9 @@ class LabelModel:
         if lr_scheduler_name == "constant":
             lr_scheduler = self.train_config.lr
         elif lr_scheduler_name == "linear":
-            lr_scheduler = optax.linear_schedule(self.train_config.lr, self.train_config.lr*0.1, self.n_epochs, transition_begin=0)
+            lr_scheduler = optax.linear_schedule(self.train_config.lr,lr_scheduler_config.linear_config.end_value, self.n_epochs, transition_begin=0)
         elif lr_scheduler_name == "exponential":
-            lr_scheduler=optax.exponential_decay(self.train_config.lr, self.n_epochs, 0.1)
-        #    lr_scheduler = optim.lr_scheduler.ExponentialLR(
-        #        self.optimizer, **lr_scheduler_config.exponential_config._asdict()
-        #    )
-        #elif lr_scheduler_name == "step":
-        #    lr_scheduler = optim.lr_scheduler.StepLR(
-        #        self.optimizer, **lr_scheduler_config.step_config._asdict()
-        #    )
+            lr_scheduler=optax.exponential_decay(self.train_config.lr, self.n_epochs, **lr_scheduler_config.exponential_config._asdict())
         else:
             raise ValueError(f"Unrecognized lr scheduler option '{lr_scheduler_name}'")
 

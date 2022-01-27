@@ -41,3 +41,13 @@ Optimizer Config
 | rmsprop_config | centered whether the second moment or the variance of the past gradients is used to rescale the latest gradients | False | bool |
 | rmsprop_config | momentum | the decay rate used by the momentum term, when it is set to None, then momentum is not used at all | 0.9 | float, None |
 | rmsprop_config | nesterov | whether nesterov momentum is used | False | bool |
+
+LR Scheduler Config
+
+| Config Key | Parameter | Description | Default | Valid Types |
+| --- | --- | --- | --- | --- |
+| --- | warmup_steps | The number of warmup_units over which to perform learning rate warmup (a linear increase from 0 to the specified lr) | 0 | float |
+| --- | warmup_percentage | The percentage of the training procedure to warm up over (ignored if warmup_steps is non-zero) | 0.0 | float |
+| exponential_config | decay_rate | must not be zero. The decay rate. | 0.1 | float |
+| exponential_config | end_value | a floor for the learning rate | None | float, None |
+| linear_config | end_value | the final value of the learning rate | 0. | float |
