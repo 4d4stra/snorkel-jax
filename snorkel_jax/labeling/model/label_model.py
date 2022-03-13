@@ -20,6 +20,7 @@ from snorkel_jax.types import Config
 from snorkel_jax.utils.config import merge_config
 from snorkel_jax.utils.lr_schedulers import LRSchedulerConfig
 from snorkel_jax.utils.optimizers import OptimizerConfig
+from snorkel_jax.algos import hungarian
 
 Metrics = Dict[str, float]
 
@@ -409,6 +410,59 @@ class LabelModel:
             epochs.close()
         return opt_arr
 
+
+    def _break_col_permutation_symmetry(self) -> None:
+        r"""Heuristically choose amongst (possibly) several valid mu values.
+        If there are several values of mu that equivalently satisfy the optimization
+        objective, as there often are due to column permutation symmetries, then pick
+        the solution that trusts the user-written LFs most.
+        In more detail, suppose that mu satisfies (minimizes) the two loss objectives:
+            1. O = mu @ P @ mu.T
+            2. diag(O) = sum(mu @ P, axis=1)
+        Then any column permutation matrix Z that commutes with P will also equivalently
+        satisfy these objectives, and thus is an equally valid (symmetric) solution.
+        Therefore, we select the solution that maximizes the summed probability of the
+        LFs being accurate when not abstaining.
+            \sum_lf \sum_{y=1}^{cardinality} P(\lf = y, Y = y)
+        """
+        #P represents class balance
+        #mu is the learned accuracies
+        d, k = self.mu.shape
+        # We want to maximize the sum of diagonals of matrices for each LF. So
+        # we start by computing the sum of conditional probabilities here.
+        probs_sum = sum([self.mu[i : i + k] for i in range(0, self.m * k, k)]) @ self.P
+        cost_mat=-probs_sum
+
+        Z = jnp.zeros([k, k])
+
+        # Compute groups of indicess with equal prior in P.
+        P_rounded=jnp.around(self.P.diagonal(),3)
+        for val_i in jnp.unique(P_rounded):
+            group_bool=P_rounded==val_i
+            if jnp.sum(group_bool)==1:
+                Z=Z.at[group_bool,group_bool].set(1)
+                continue
+
+            # Use the Munkres algorithm to find the optimal permutation.
+            # We use minus because we want to maximize diagonal sum, not minimize,
+            # and transpose because we want to permute columns, not rows.
+            res_mat=cost_mat[group_bool][:,group_bool]
+            Z_mask=jnp.zeros(Z.shape)
+            Z_mask=Z_mask.at[group_bool].set(Z_mask[group_bool]+1)
+            Z_mask=Z_mask.at[:,group_bool].set(Z_mask[:,group_bool]+1)
+            Z_mask=Z_mask==2
+            print(Z_mask)
+            print(res_mat)
+            assignment_mat=hungarian.solve(res_mat)
+            print(assignment_mat.astype(int))
+            Z=Z.at[Z_mask].set(assignment_mat.astype(int).flatten())
+            print(Z)
+
+        # Set mu according to permutation
+        print(self.mu)
+        self.mu=self.mu @ Z 
+        print(self.mu)
+
     def get_conditional_probs(self) -> jnp.array:
         r"""Return the estimated conditional probabilities table given parameters mu.
         Given a parameter vector mu, return the estimated conditional probabilites
@@ -683,7 +737,7 @@ class LabelModel:
         
         # Post-processing operations on mu
         self._clip_params()
-        ##self._break_col_permutation_symmetry()
+        self._break_col_permutation_symmetry()
 
         # Print confusion matrix if applicable
         if self.config.verbose:  # pragma: no cover
