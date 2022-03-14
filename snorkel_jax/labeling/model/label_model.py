@@ -451,17 +451,11 @@ class LabelModel:
             Z_mask=Z_mask.at[group_bool].set(Z_mask[group_bool]+1)
             Z_mask=Z_mask.at[:,group_bool].set(Z_mask[:,group_bool]+1)
             Z_mask=Z_mask==2
-            print(Z_mask)
-            print(res_mat)
             assignment_mat=hungarian.solve(res_mat)
-            print(assignment_mat.astype(int))
             Z=Z.at[Z_mask].set(assignment_mat.astype(int).flatten())
-            print(Z)
 
         # Set mu according to permutation
-        print(self.mu)
         self.mu=self.mu @ Z 
-        print(self.mu)
 
     def get_conditional_probs(self) -> jnp.array:
         r"""Return the estimated conditional probabilities table given parameters mu.
