@@ -6,6 +6,7 @@ Migrate parameter l2 => weight_decay
 vectorized label model predict method
 removed "true random" from tie break rules
 some optimizations in the way things are computed in LFAnalysis
+Native implementation of the Hungarian Algorithm for handling column permutation symmetry
 
 | Parameter | Description | Default | Valid Types |
 | --- | --- | --- | --- |
