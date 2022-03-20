@@ -1,12 +1,22 @@
 # snorkel-jax
-Additional updates from snorkel package:
-Merge in handling of dependencies from MeTaL
-Optimization model "Adamax" was replace by "RMSProp"
-Migrate parameter l2 => weight_decay
-vectorized label model predict method
-removed "true random" from tie break rules
-some optimizations in the way things are computed in LFAnalysis
-Native implementation of the Hungarian Algorithm for handling column permutation symmetry
+This package takes the core ideas implemented in *[Snorkel](https://github.com/snorkel-team/snorkel)* and *[Snorkel MeTaL](https://github.com/HazyResearch/metal)* and reimplements them fully in *[JAX](https://github.com/google/jax)*.
+
+This package follows *[Snorkel](https://github.com/snorkel-team/snorkel)* most closely, however, there are a number of changes.
+1. Methodological Updates:
+    1. Merge in handling of dependencies from MeTaL
+2. Optimization Models:
+    1. Optimization model "Adamax" was removed
+    2. "RMSProp" was added
+    3. Migrate parameter l2 => weight_decay
+3. Implementation Optimization
+    1. There is no base numpy in this implementation; everything is fully implemented with *[JAX](https://github.com/google/jax)*
+    2. vectorized label model predict method
+    3. some optimizations in the way things are computed in LFAnalysis
+    4. Native implementation of the Hungarian Algorithm for handling column permutation symmetry
+4. Miscellaneous
+    1. removed "true random" from tie break rules
+
+
 
 | Parameter | Description | Default | Valid Types |
 | --- | --- | --- | --- |
